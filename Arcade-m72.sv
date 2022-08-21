@@ -227,9 +227,12 @@ localparam CONF_STR = {
 	"O[2:1],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"O[4:3],Scandoubler Fx,None,CRT 25%,CRT 50%,CRT 75%;",
 	"O[6:5],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
-	"O[7],OSD Pause,Off,On;",
 	"O[9:8],Video Timing,Normal,50Hz,57Hz,60Hz;",
 	"O[10],Orientation,Horz,Vert;",
+	"-;",
+	"P2,Pause Options;",
+	"P2O[7],OSD Pause,Off,On;",
+	"P2O[11],Dim video after 10s,On,Off;",
 	"-;",
 	"DIP;",
 	"-;",
@@ -563,69 +566,92 @@ m72 m72(
 	.video_60hz(video_60hz)
 );
 
-wire VGA_DE_MIXER;
-video_mixer #(386, 0, 1) video_mixer(
-	.CLK_VIDEO(CLK_VIDEO),
-	.CE_PIXEL(CE_PIXEL),
-	.ce_pix(ce_pix),
+// wire VGA_DE_MIXER;
+// video_mixer #(386, 0, 1) video_mixer(
+// 	.CLK_VIDEO(CLK_VIDEO),
+// 	.CE_PIXEL(CE_PIXEL),
+// 	.ce_pix(ce_pix),
 
-	.scandoubler(forced_scandoubler || scandoubler_fx != 2'b00),
-	.hq2x(0),
+// 	.scandoubler(forced_scandoubler || scandoubler_fx != 2'b00),
+// 	.hq2x(0),
 
-	.gamma_bus(gamma_bus),
+// 	.gamma_bus(gamma_bus),
 
-	.R(R),
-	.G(G),
-	.B(B),
+// 	.R(R),
+// 	.G(G),
+// 	.B(B),
 
-	.HBlank(HBlank),
-	.VBlank(VBlank),
-	.HSync(HSync),
-	.VSync(VSync),
+// 	.HBlank(HBlank),
+// 	.VBlank(VBlank),
+// 	.HSync(HSync),
+// 	.VSync(VSync),
 
-	.VGA_R(VGA_R),
-	.VGA_G(VGA_G),
-	.VGA_B(VGA_B),
-	.VGA_VS(VGA_VS),
-	.VGA_HS(VGA_HS),
-	.VGA_DE(VGA_DE_MIXER),
+// 	.VGA_R(VGA_R),
+// 	.VGA_G(VGA_G),
+// 	.VGA_B(VGA_B),
+// 	.VGA_VS(VGA_VS),
+// 	.VGA_HS(VGA_HS),
+// 	.VGA_DE(VGA_DE_MIXER),
 
-	.HDMI_FREEZE(HDMI_FREEZE)
-);
+// 	.HDMI_FREEZE(HDMI_FREEZE)
+// );
 
-video_freak video_freak(
-	.CLK_VIDEO(CLK_VIDEO),
-	.CE_PIXEL(CE_PIXEL),
-	.VGA_VS(VGA_VS),
-	.HDMI_WIDTH(HDMI_WIDTH),
-	.HDMI_HEIGHT(HDMI_HEIGHT),
-	.VGA_DE(VGA_DE),
-	.VIDEO_ARX(VIDEO_ARX),
-	.VIDEO_ARY(VIDEO_ARY),
+// video_freak video_freak(
+// 	.CLK_VIDEO(CLK_VIDEO),
+// 	.CE_PIXEL(CE_PIXEL),
+// 	.VGA_VS(VGA_VS),
+// 	.HDMI_WIDTH(HDMI_WIDTH),
+// 	.HDMI_HEIGHT(HDMI_HEIGHT),
+// 	.VGA_DE(VGA_DE),
+// 	.VIDEO_ARX(VIDEO_ARX),
+// 	.VIDEO_ARY(VIDEO_ARY),
 
-	.VGA_DE_IN(VGA_DE_MIXER),
-	.ARX((!ar) ? ( no_rotate ? 12'd4 : 12'd3 ) : (ar - 1'd1)),
-	.ARY((!ar) ? ( no_rotate ? 12'd3 : 12'd4 ) : 12'd0),
-	.CROP_SIZE(0),
-	.CROP_OFF(0),
-	.SCALE(scale)
-);
+// 	.VGA_DE_IN(VGA_DE_MIXER),
+// 	.ARX((!ar) ? ( no_rotate ? 12'd4 : 12'd3 ) : (ar - 1'd1)),
+// 	.ARY((!ar) ? ( no_rotate ? 12'd3 : 12'd4 ) : 12'd0),
+// 	.CROP_SIZE(0),
+// 	.CROP_OFF(0),
+// 	.SCALE(scale)
+// );
 
-pause pause(
+wire rgb_out;
+
+pause #(8,8,8,32) pause
+(
 	.clk_sys(clk_sys),
 	.reset(reset),
 	.user_button(m_pause),
 	.pause_request(0),
 	.options({1'b0, pause_in_osd}),
+	
+	.OSD_STATUS(OSD_STATUS),
+	.r(R),
+	.g(G),
+	.b(B),
 	.pause_cpu(system_pause),
-	.OSD_STATUS(OSD_STATUS)
+	.dim_video(),
+	.rgb_out(rgb_out)
 );
 
 `ifndef M72_DEBUG // debug uses DDR
 screen_rotate screen_rotate(.*);
 `endif
 
-assign CLK_VIDEO = CLK_32M;
+arcade_video #(386,24,1) arcade_video
+(
+	.*,
+
+	.clk_video(CLK_32M)
+	.ce_pix(ce_pix),
+
+	.RGB_in(rgb_out),
+	.HBlank(HBlank),
+	.VBlank(VBlank),
+	.HSync(HSync),
+	.VSync(VSync),
+
+	.fx(scandoubler_fx)
+);
 
 ddr_debug_data_t ddr_debug_data;
 
